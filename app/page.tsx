@@ -34,6 +34,10 @@ type Course = {
   type: string;
   property?: string;
   discipline?: string;
+  sharedDiscipline?: string;
+  sharedDisciplines?: string;
+  eligibleDiscipline?: string;
+  degreeDiscipline?: string;
   level?: string;
   credit: number;
   teacher: string;
@@ -52,6 +56,11 @@ type Course = {
 
 type EnglishMode = '未选择' | '免修' | '线下课' | 'MOOC';
 type EnglishPlan = { doctoral: EnglishMode; masters: EnglishMode };
+type StudentType =
+  | '未选择'
+  | '硕士研究生'
+  | '直博研究生'
+  | '普通招考博士研究生';
 
 const DAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 const PERIODS = [
@@ -82,6 +91,12 @@ const COURSE_TYPES = [
 ];
 const PLAN_STORAGE_KEY = 'ucas-graduate-course-planner-v3';
 const PAGE_SIZE = 80;
+const STUDENT_TYPES: StudentType[] = [
+  '硕士研究生',
+  '直博研究生',
+  '普通招考博士研究生',
+];
+const CAMPUSES = ['全部校区', '雁栖湖', '玉泉路', '中关村'];
 
 function creditFromValue(value: unknown) {
   const raw =
@@ -127,6 +142,42 @@ function normalizeCourse(
     ),
     sessions,
   } as Course;
+}
+
+function disciplineValues(course: Course) {
+  return [
+    course.discipline,
+    course.sharedDiscipline,
+    course.sharedDisciplines,
+    course.eligibleDiscipline,
+    course.degreeDiscipline,
+  ]
+    .filter(Boolean)
+    .flatMap((value) => String(value).split(/[、,，;/；|]/))
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function isCoreCourse(course: Course) {
+  return course.type.includes('核心');
+}
+
+function isProfessionalCourse(course: Course) {
+  return course.type === '专业课';
+}
+
+function isCoreOrProfessionalCourse(course: Course) {
+  return isCoreCourse(course) || isProfessionalCourse(course);
+}
+
+function matchesDiscipline(course: Course, discipline: string) {
+  if (!discipline) return false;
+  return disciplineValues(course).some(
+    (value) =>
+      value === discipline ||
+      value.includes(discipline) ||
+      discipline.includes(value),
+  );
 }
 
 function parseWeeks(value: string) {
@@ -228,7 +279,10 @@ export default function Home() {
   const [search, setSearch] = useState('');
   const [activeType, setActiveType] = useState('全部');
   const [onlyNonClosed, setOnlyNonClosed] = useState(false);
+  const [campusFilter, setCampusFilter] = useState('全部校区');
   const [catalogPage, setCatalogPage] = useState(1);
+  const [studentType, setStudentType] = useState<StudentType>('未选择');
+  const [selectedDiscipline, setSelectedDiscipline] = useState('');
   const [englishPlan, setEnglishPlan] = useState<EnglishPlan>({
     doctoral: '未选择',
     masters: '未选择',
@@ -250,6 +304,8 @@ export default function Home() {
               plan?: Course[];
               degreeCodes?: string[];
               englishPlan?: EnglishPlan;
+              studentType?: StudentType;
+              selectedDiscipline?: string;
             };
             if (parsed.storageVersion === 1) {
               setPlan((parsed.plan ?? []).map(normalizeCourse));
@@ -257,21 +313,29 @@ export default function Home() {
               setEnglishPlan(
                 parsed.englishPlan ?? { doctoral: '未选择', masters: '未选择' },
               );
+              setStudentType(parsed.studentType ?? '未选择');
+              setSelectedDiscipline(parsed.selectedDiscipline ?? '');
               setPlanDirty(true);
             } else {
               setPlan([]);
               setDegreeCodes(new Set());
               setEnglishPlan({ doctoral: '未选择', masters: '未选择' });
+              setStudentType('未选择');
+              setSelectedDiscipline('');
             }
           } catch {
             setPlan([]);
             setDegreeCodes(new Set());
             setEnglishPlan({ doctoral: '未选择', masters: '未选择' });
+            setStudentType('未选择');
+            setSelectedDiscipline('');
           }
         } else {
           setPlan([]);
           setDegreeCodes(new Set());
           setEnglishPlan({ doctoral: '未选择', masters: '未选择' });
+          setStudentType('未选择');
+          setSelectedDiscipline('');
         }
         setCatalog(normalizedCatalog);
         setReady(true);
@@ -293,9 +357,19 @@ export default function Home() {
           plan,
           degreeCodes: [...degreeCodes],
           englishPlan,
+          studentType,
+          selectedDiscipline,
         }),
       );
-  }, [degreeCodes, englishPlan, plan, planDirty, ready]);
+  }, [
+    degreeCodes,
+    englishPlan,
+    plan,
+    planDirty,
+    ready,
+    selectedDiscipline,
+    studentType,
+  ]);
 
   const selectedCodes = useMemo(
     () => new Set(plan.map((course) => course.code)),
@@ -304,28 +378,6 @@ export default function Home() {
   const fallCredits = useMemo(
     () => plan.reduce((sum, course) => sum + course.credit, 0),
     [plan],
-  );
-  const degreeCredits = useMemo(
-    () =>
-      plan
-        .filter((course) => degreeCodes.has(course.code))
-        .reduce((sum, course) => sum + course.credit, 0),
-    [degreeCodes, plan],
-  );
-  const coreCount = useMemo(
-    () =>
-      plan.filter(
-        (course) =>
-          degreeCodes.has(course.code) && course.type.includes('核心'),
-      ).length,
-    [degreeCodes, plan],
-  );
-  const professionalCount = useMemo(
-    () =>
-      plan.filter(
-        (course) => degreeCodes.has(course.code) && course.type === '专业课',
-      ).length,
-    [degreeCodes, plan],
   );
   const publicElectiveCredits = useMemo(
     () =>
@@ -365,6 +417,67 @@ export default function Home() {
       new Set(conflicts.flatMap(([left, right]) => [left.code, right.code])),
     [conflicts],
   );
+  const disciplineOptions = useMemo(
+    () =>
+      Array.from(new Set(catalog.flatMap(disciplineValues))).sort(
+        (left, right) => left.localeCompare(right, 'zh-CN'),
+      ),
+    [catalog],
+  );
+  const degreePlanCourses = useMemo(
+    () =>
+      plan.filter(
+        (course) =>
+          degreeCodes.has(course.code) &&
+          isCoreOrProfessionalCourse(course) &&
+          matchesDiscipline(course, selectedDiscipline),
+      ),
+    [degreeCodes, plan, selectedDiscipline],
+  );
+  const degreeCredits = useMemo(
+    () => degreePlanCourses.reduce((sum, course) => sum + course.credit, 0),
+    [degreePlanCourses],
+  );
+  const coreCount = useMemo(
+    () => degreePlanCourses.filter(isCoreCourse).length,
+    [degreePlanCourses],
+  );
+  const professionalCount = useMemo(
+    () => degreePlanCourses.filter(isProfessionalCourse).length,
+    [degreePlanCourses],
+  );
+  const degreeTarget =
+    studentType === '硕士研究生'
+      ? 12
+      : studentType === '直博研究生'
+        ? 16
+        : studentType === '普通招考博士研究生'
+          ? 4
+          : 0;
+  const isRegularDoctor = studentType === '普通招考博士研究生';
+  const degreeCreditDone =
+    studentType !== '未选择' &&
+    Boolean(selectedDiscipline) &&
+    degreeCredits >= degreeTarget;
+  const hasDoctoralCommonOrExclusive = degreePlanCourses.some((course) =>
+    /硕博通用|博士/.test(course.level ?? ''),
+  );
+  const degreeStructureDone =
+    studentType !== '未选择' &&
+    Boolean(selectedDiscipline) &&
+    (isRegularDoctor
+      ? hasDoctoralCommonOrExclusive
+      : coreCount >= 2 && professionalCount >= 2);
+  const degreeCreditCurrent =
+    studentType === '未选择' || !selectedDiscipline
+      ? '待设置身份与一级学科'
+      : `${degreeCredits.toFixed(1)} / ${degreeTarget} 分`;
+  const degreeStructureCurrent =
+    studentType === '未选择' || !selectedDiscipline
+      ? '待设置身份与一级学科'
+      : isRegularDoctor
+        ? `${degreeCredits.toFixed(1)} / 4 分 · 硕博通用/博士专属课程 ${hasDoctoralCommonOrExclusive ? 1 : 0}/1`
+        : `核心 ${coreCount}/2 · 专业 ${professionalCount}/2`;
 
   const filteredCatalog = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -376,9 +489,11 @@ export default function Home() {
           .includes(needle);
       const matchesType = activeType === '全部' || course.type === activeType;
       const matchesExam = !onlyNonClosed || !course.exam.includes('闭卷');
-      return matchesSearch && matchesType && matchesExam;
+      const matchesCampus =
+        campusFilter === '全部校区' || course.campus === campusFilter;
+      return matchesSearch && matchesType && matchesExam && matchesCampus;
     });
-  }, [activeType, catalog, onlyNonClosed, search]);
+  }, [activeType, campusFilter, catalog, onlyNonClosed, search]);
   const catalogPageCount = Math.max(
     1,
     Math.ceil(filteredCatalog.length / PAGE_SIZE),
@@ -438,6 +553,8 @@ export default function Home() {
     window.localStorage.removeItem(PLAN_STORAGE_KEY);
     setPlan([]);
     setDegreeCodes(new Set());
+    setStudentType('未选择');
+    setSelectedDiscipline('');
     setEnglishPlan({ doctoral: '未选择', masters: '未选择' });
     setPlanDirty(false);
     setMessage('已恢复为空方案：0 门课程、0 学分。');
@@ -452,6 +569,8 @@ export default function Home() {
             plan,
             degreeCodes: [...degreeCodes],
             englishPlan,
+            studentType,
+            selectedDiscipline,
           },
           null,
           2,
@@ -481,12 +600,16 @@ export default function Home() {
           plan: Course[];
           degreeCodes?: string[];
           englishPlan?: EnglishPlan;
+          studentType?: StudentType;
+          selectedDiscipline?: string;
         };
         setPlan((parsed.plan ?? []).map(normalizeCourse));
         setDegreeCodes(new Set(parsed.degreeCodes ?? []));
         setEnglishPlan(
           parsed.englishPlan ?? { doctoral: '未选择', masters: '未选择' },
         );
+        setStudentType(parsed.studentType ?? '未选择');
+        setSelectedDiscipline(parsed.selectedDiscipline ?? '');
         setPlanDirty(true);
         setMessage('方案备份已恢复。');
       } catch {
@@ -497,6 +620,31 @@ export default function Home() {
   }
 
   const currentWeekCourses = plan.filter((course) => hasWeek(course, week));
+  const englishOptions: Array<{
+    key: 'doctoral' | 'masters';
+    label: string;
+    code: string;
+    options: EnglishMode[];
+  }> =
+    studentType === '硕士研究生'
+      ? [
+          {
+            key: 'masters',
+            label: '硕士英语',
+            code: '英语A',
+            options: ['MOOC', '免修', '线下课'],
+          },
+        ]
+      : studentType === '直博研究生' || studentType === '普通招考博士研究生'
+        ? [
+            {
+              key: 'doctoral',
+              label: '博士英语',
+              code: '英语B',
+              options: ['免修', '线下课'],
+            },
+          ]
+        : [];
 
   return (
     <main className="site-shell">
@@ -534,8 +682,64 @@ export default function Home() {
         <span>春季 ≥10 分</span>
         <span>夏季 ≥2 分</span>
         <span>核心课 ≥2 门</span>
-        <span>专业学位课 ≥16 分</span>
+        <span>
+          {studentType === '硕士研究生'
+            ? '学位课 ≥12 分'
+            : studentType === '普通招考博士研究生'
+              ? '专业学位课 ≥4 分'
+              : '学位课 ≥16 分'}
+        </span>
         <span>总学分 ≥38 分</span>
+      </section>
+
+      <section className="settings-panel wrap panel">
+        <div className="section-head">
+          <div>
+            <p className="eyebrow">个性化规则检查</p>
+            <h2>先设置身份与一级学科</h2>
+          </div>
+          <span className="status">仅保存在本机</span>
+        </div>
+        <div className="settings-grid">
+          <label className="select-field">
+            <span>研究生身份</span>
+            <select
+              value={studentType}
+              onChange={(event) => {
+                setStudentType(event.target.value as StudentType);
+                setPlanDirty(true);
+              }}
+            >
+              <option value="未选择">请选择身份</option>
+              {STUDENT_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="select-field">
+            <span>本人一级学科</span>
+            <select
+              value={selectedDiscipline}
+              onChange={(event) => {
+                setSelectedDiscipline(event.target.value);
+                setPlanDirty(true);
+              }}
+            >
+              <option value="">请选择一级学科</option>
+              {disciplineOptions.map((discipline) => (
+                <option key={discipline} value={discipline}>
+                  {discipline}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <p className="settings-note">
+          只有课程数据中的“所属一级学科/共享学科所属一级学科”匹配所选学科时，核心课和专业课才计入
+          2+2 学位课结构；其他课程仍可加入，但会标记为补充课程。
+        </p>
       </section>
 
       <section className="metrics wrap">
@@ -547,25 +751,39 @@ export default function Home() {
           good={fallCredits >= 10}
         />
         <Metric
-          label="专业学位课"
+          label="匹配一级学科的学位课"
           value={degreeCredits.toFixed(1)}
-          target="/ 16 分"
+          target={
+            studentType === '硕士研究生'
+              ? '/ 12 分'
+              : studentType === '普通招考博士研究生'
+                ? '/ 4 分'
+                : '/ 16 分'
+          }
           tone="blue"
-          good={degreeCredits >= 16}
+          good={degreeCreditDone}
         />
         <Metric
           label="核心课"
           value={String(coreCount)}
           target="/ 2 门"
           tone="rose"
-          good={coreCount >= 2}
+          good={
+            studentType !== '未选择' &&
+            Boolean(selectedDiscipline) &&
+            (!isRegularDoctor ? coreCount >= 2 : hasDoctoralCommonOrExclusive)
+          }
         />
         <Metric
           label="专业课"
           value={String(professionalCount)}
           target="/ 2 门"
           tone="gold"
-          good={professionalCount >= 2}
+          good={
+            studentType !== '未选择' &&
+            Boolean(selectedDiscipline) &&
+            (!isRegularDoctor ? professionalCount >= 2 : degreeCredits >= 4)
+          }
         />
         <Metric
           label="公共选修"
@@ -585,26 +803,12 @@ export default function Home() {
           <span className="status">按适用情况选择</span>
         </div>
         <p className="english-intro">
-          这里记录英语课程路径；选择线下课后，请在下方课程目录中搜索对应课程并加入计划。免修或
-          MOOC 是否计入学分，以官方审核结果为准，规划器不会自动增加课程学分。
+          {studentType === '未选择'
+            ? '请先在上方选择研究生身份，系统会显示对应的英语课程路径。'
+            : '选择线下课后，请在下方课程目录中搜索对应课程并加入计划。免修或 MOOC 是否计入学分，以官方审核结果为准，规划器不会自动增加课程学分。'}
         </p>
         <div className="english-options">
-          {(
-            [
-              {
-                key: 'doctoral',
-                label: '博士英语',
-                code: '英语B',
-                options: ['免修', '线下课'],
-              },
-              {
-                key: 'masters',
-                label: '硕士英语',
-                code: '英语A',
-                options: ['MOOC', '免修', '线下课'],
-              },
-            ] as const
-          ).map((item) => (
+          {englishOptions.map((item) => (
             <div className="english-option" key={item.key}>
               <div className="english-option-head">
                 <div>
@@ -636,6 +840,11 @@ export default function Home() {
               )}
             </div>
           ))}
+          {studentType === '未选择' && (
+            <div className="english-empty">
+              选择身份后显示适用的英语课程选项。
+            </div>
+          )}
         </div>
       </section>
 
@@ -676,6 +885,17 @@ export default function Home() {
                       {course.type} · {course.teacher || '教师待定'} ·{' '}
                       {shortExam(course.exam)}
                     </p>
+                    {isCoreOrProfessionalCourse(course) && (
+                      <span
+                        className={`discipline-match ${selectedDiscipline && matchesDiscipline(course, selectedDiscipline) ? 'match' : 'supplement'}`}
+                      >
+                        {selectedDiscipline
+                          ? matchesDiscipline(course, selectedDiscipline)
+                            ? `一级学科匹配：${selectedDiscipline}`
+                            : '非所选一级学科：仅作补充课程'
+                          : '尚未选择一级学科，暂无法核验'}
+                      </span>
+                    )}
                     <p className="course-schedule">
                       {course.sessions.length
                         ? course.sessions
@@ -745,16 +965,20 @@ export default function Home() {
             note="不计未转换的人文系列与科学前沿讲座"
           />
           <Requirement
-            label="专业学位课"
-            current={`${degreeCredits.toFixed(1)} / 16 分`}
-            done={degreeCredits >= 16}
-            note="按当前勾选为学位课的课程统计"
+            label="符合一级学科的学位课"
+            current={degreeCreditCurrent}
+            done={degreeCreditDone}
+            note="只统计勾选为学位课且匹配所选一级学科的核心课/专业课"
           />
           <Requirement
-            label="学位课结构"
-            current={`核心 ${coreCount}/2 · 专业 ${professionalCount}/2`}
-            done={coreCount >= 2 && professionalCount >= 2}
-            note="至少2门核心课+2门专业课"
+            label={isRegularDoctor ? '普博学位课结构' : '2+2 学位课结构'}
+            current={degreeStructureCurrent}
+            done={degreeStructureDone}
+            note={
+              isRegularDoctor
+                ? '至少1门本一级学科硕博通用或博士专属核心课/专业课'
+                : '本一级学科至少2门核心课+2门专业课'
+            }
           />
           <Requirement
             label="公共选修"
@@ -787,6 +1011,63 @@ export default function Home() {
             <span>全程总学分 ≥38 分</span>
           </div>
         </aside>
+      </section>
+
+      <section className="rules-panel wrap panel">
+        <div className="section-head">
+          <div>
+            <p className="eyebrow">官方规则摘要</p>
+            <h2>课程属性与选课注意事项</h2>
+          </div>
+          <span className="status">以培养单位最新通知为准</span>
+        </div>
+        <div className="rules-grid">
+          <details open>
+            <summary>课程属性与课程编码</summary>
+            <p>
+              课程编号第 14 位代表课程属性：1 学科核心课、2 专业核心课、3
+              专业课、4 研讨课、5 实验课、6 实践课、7 科学前沿讲座、B
+              公共必修课、X 公共选修课。
+            </p>
+            <p>
+              课程编号第 18 位代表开课校区：H 雁栖湖、Y 玉泉路、Z 中关村；第 13
+              位代表培养层次：M 硕士、D 博士、P 硕博通用/博士通用课程。
+            </p>
+            <p className="rule-warning">
+              集中教学研究生不能跨雁栖湖校区和城区校区选课；研讨课、实验课、实践课和两类讲座只能作为非学位课修读。
+            </p>
+          </details>
+          <details>
+            <summary>公共必修课</summary>
+            <p>
+              公共必修课按培养方案核对。常见课程包括新时代中国特色社会主义理论与实践（2
+              学分）、自然辩证法概论（1 学分）、学术道德与学术写作规范（1
+              学分）、中国马克思主义与当代（2
+              学分），以及按身份适用的硕士英语或博士英语。
+            </p>
+            <p>
+              学术道德与学术写作规范通常需要在同一学年内完成；硕士英语、博士英语的免修、慕课、线下课和考试要求以外语系及教务通知为准。
+            </p>
+            <p className="rule-warning">
+              公共必修课中的分班课名额有限，请按身份和培养方案选择正确课程，不要仅凭课程名称判断是否计入学位要求。
+            </p>
+          </details>
+          <details>
+            <summary>公共选修课</summary>
+            <p>
+              硕士生、硕博连读生和直博生秋季、春季每学期至少修读 2
+              学分公共选修课；夏季学期可作为补充，课程名额通常有限。
+            </p>
+            <p>
+              课程编号第 14 位为 X
+              的课程属于公共选修课，实行限选、先到先得；体育类公共选修课每学期限选
+              1 门。
+            </p>
+            <p className="rule-warning">
+              公共选修课能否计入培养方案、课程属性是否发生变化，请以选课系统显示和培养单位审核结果为准。
+            </p>
+          </details>
+        </div>
       </section>
 
       <section className="timetable wrap">
@@ -938,6 +1219,8 @@ export default function Home() {
                 window.localStorage.removeItem(PLAN_STORAGE_KEY);
                 setPlan([]);
                 setDegreeCodes(new Set());
+                setStudentType('未选择');
+                setSelectedDiscipline('');
                 setEnglishPlan({ doctoral: '未选择', masters: '未选择' });
                 setMessage('已清除本机保存的方案，当前为0学分空方案。');
               }}
@@ -994,6 +1277,23 @@ export default function Home() {
               ))}
             </div>
           </div>
+          <div className="filter-row campus-row">
+            <span className="filter-label">开设校区</span>
+            <div className="campus-buttons">
+              {CAMPUSES.map((campus) => (
+                <button
+                  key={campus}
+                  className={campusFilter === campus ? 'active' : ''}
+                  onClick={() => {
+                    setCampusFilter(campus);
+                    setCatalogPage(1);
+                  }}
+                >
+                  {campus}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
         <div className="course-table-wrap">
           <table className="course-table">
@@ -1046,7 +1346,9 @@ export default function Home() {
                     </td>
                     <td>
                       <span className="type-pill">{course.type}</span>
-                      <small>{course.discipline || '公共课'}</small>
+                      <small>
+                        {disciplineValues(course).join(' / ') || '公共课'}
+                      </small>
                     </td>
                     <td className="credit-cell">{course.credit.toFixed(1)}</td>
                     <td>

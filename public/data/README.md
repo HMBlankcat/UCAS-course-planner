@@ -13,8 +13,11 @@
   "teacher": "教师",
   "exam": "考核方式",
   "place": "地点",
+  "campus": "雁栖湖",
   "sessions": []
 }
 ```
+
+一级学科匹配使用 `discipline` 字段；共享课程可补充 `sharedDiscipline`、`sharedDisciplines`、`eligibleDiscipline` 或 `degreeDiscipline` 字段。校区使用 `campus` 字段，当前页面支持雁栖湖、玉泉路和中关村筛选。
 
 公开发布或更新数据前，请核对课程信息的准确性和再分发权限。
