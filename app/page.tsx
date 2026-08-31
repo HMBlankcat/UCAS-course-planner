@@ -101,6 +101,88 @@ const STUDENT_TYPES: StudentType[] = [
   '普通招考博士研究生',
 ];
 const CAMPUSES = ['全部校区', '雁栖湖', '玉泉路', '中关村'];
+const PRIMARY_DISCIPLINE_BY_CODE: Record<string, string> = {
+  '0101': '哲学',
+  '0202': '应用经济学',
+  '0251': '金融',
+  '0252': '应用统计',
+  '0270': '统计学',
+  '0301': '法学',
+  '0305': '马克思主义理论',
+  '0354': '知识产权',
+  '0402': '心理学',
+  '0403': '体育学',
+  '0454': '应用心理',
+  '0501': '中国语言文学',
+  '0502': '外国语言文学',
+  '0503': '传播学',
+  '0551': '翻译',
+  '0601': '考古学',
+  '0701': '数学',
+  '0702': '物理学',
+  '0703': '化学',
+  '0704': '天文学',
+  '0705': '地理学',
+  '0706': '大气科学',
+  '0708': '地球物理学',
+  '0709': '地质学',
+  '0710': '生物学',
+  '0711': '系统科学',
+  '0712': '科学技术史',
+  '0713': '生态学',
+  '0714': '统计学',
+  '0801': '力学',
+  '0803': '光学工程',
+  '0804': '仪器科学与技术',
+  '0805': '材料科学与工程',
+  '0807': '动力工程及工程热物理',
+  '0808': '电气工程',
+  '0809': '电子科学与技术',
+  '0810': '信息与通信工程',
+  '0811': '控制科学与工程',
+  '0812': '计算机科学与技术',
+  '0813': '建筑学',
+  '0816': '测绘科学与技术',
+  '0817': '化学工程与技术',
+  '0818': '地质资源与地质工程',
+  '0825': '航空宇航科学与技术',
+  '0827': '核科学与技术',
+  '0830': '环境科学与工程',
+  '0831': '生物医学工程',
+  '0835': '软件工程',
+  '0839': '网络空间安全',
+  '0854': '电子信息',
+  '0856': '材料与化工',
+  '0857': '资源与环境',
+  '0858': '能源动力',
+  '0860': '生物与医药',
+  '0901': '作物学',
+  '0902': '园艺学',
+  '0903': '农业资源与环境',
+  '0905': '畜牧学',
+  '0907': '林学',
+  '0908': '水产',
+  '0951': '农业',
+  '1001': '基础医学',
+  '1007': '药学',
+  '1008': '中药学',
+  '1055': '药学',
+  '1201': '管理科学与工程',
+  '1202': '工商管理学',
+  '1204': '公共管理学',
+  '1205': '信息资源管理',
+  '1251': '工商管理',
+  '1252': '公共管理',
+  '1256': '工程管理',
+  '1301': '艺术学',
+  '1401': '集成电路科学与工程',
+  '1402': '国家安全学',
+  '1404': '遥感科学与技术',
+  '1406': '纳米科学与工程',
+  '1452': '密码科学与技术',
+  '9901': '行星科学',
+  '99J1': '人居科学',
+};
 
 function creditFromValue(value: unknown) {
   const raw =
@@ -148,8 +230,27 @@ function normalizeCourse(
   } as Course;
 }
 
-function disciplineValues(course: Course) {
-  return [
+function splitDisciplineValues(values: unknown[]) {
+  return Array.from(
+    new Set(
+      values
+        .filter(Boolean)
+        .flatMap((value) => String(value).split(/[、,，;/；|]/))
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+function codeDisciplineValues(course: Course) {
+  const code = String(course.code ?? '');
+  return PRIMARY_DISCIPLINE_BY_CODE[code.slice(6, 10)]
+    ? [PRIMARY_DISCIPLINE_BY_CODE[code.slice(6, 10)]]
+    : [];
+}
+
+function rawDisciplineValues(course: Course) {
+  return splitDisciplineValues([
     course.discipline,
     course.sharedDiscipline,
     course.sharedDisciplines,
@@ -159,11 +260,25 @@ function disciplineValues(course: Course) {
     course['共享学科'],
     course['共享学科所属一级学科/专业学位'],
     course['共享学科所属一级学科／专业学位'],
-  ]
-    .filter(Boolean)
-    .flatMap((value) => String(value).split(/[、,，;/；|]/))
-    .map((value) => value.trim())
-    .filter(Boolean);
+  ]);
+}
+
+function primaryDisciplineValues(course: Course) {
+  const codeValues = codeDisciplineValues(course);
+  return splitDisciplineValues([
+    ...codeValues,
+    course['所属一级学科'],
+    course['共享学科所属一级学科/专业学位'],
+    course['共享学科所属一级学科／专业学位'],
+    ...(codeValues.length ? [] : [course.discipline]),
+  ]);
+}
+
+function disciplineValues(course: Course) {
+  return [
+    ...primaryDisciplineValues(course),
+    ...rawDisciplineValues(course),
+  ].filter((value, index, values) => values.indexOf(value) === index);
 }
 
 function isCoreCourse(course: Course) {
@@ -427,7 +542,7 @@ export default function Home() {
   );
   const disciplineOptions = useMemo(
     () =>
-      Array.from(new Set(catalog.flatMap(disciplineValues))).sort(
+      Array.from(new Set(catalog.flatMap(primaryDisciplineValues))).sort(
         (left, right) => left.localeCompare(right, 'zh-CN'),
       ),
     [catalog],
@@ -492,7 +607,7 @@ export default function Home() {
     return catalog.filter((course) => {
       const matchesSearch =
         !needle ||
-        `${course.name} ${course.code} ${course.discipline ?? ''} ${course.teacher}`
+        `${course.name} ${course.code} ${disciplineValues(course).join(' ')} ${course.teacher}`
           .toLowerCase()
           .includes(needle);
       const matchesType = activeType === '全部' || course.type === activeType;
