@@ -1,7 +1,7 @@
 ---
 name: Feature request
 about: 提议一个功能改进
-title: "[Feature] "
+title: '[Feature] '
 labels: enhancement
 ---
 
@@ -10,4 +10,3 @@ labels: enhancement
 ## 建议方案
 
 ## 备选方案
-

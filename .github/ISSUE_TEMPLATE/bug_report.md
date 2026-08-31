@@ -1,7 +1,7 @@
 ---
 name: Bug report
 about: 报告可复现的问题
-title: "[Bug] "
+title: '[Bug] '
 labels: bug
 ---
 
@@ -20,4 +20,3 @@ labels: bug
 - 操作系统：
 
 ## 预期行为与实际行为
-
