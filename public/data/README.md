@@ -18,6 +18,6 @@
 }
 ```
 
-一级学科匹配使用 `discipline` 字段；共享课程可补充 `sharedDiscipline`、`sharedDisciplines`、`eligibleDiscipline` 或 `degreeDiscipline` 字段。校区使用 `campus` 字段，当前页面支持雁栖湖、玉泉路和中关村筛选。
+一级学科匹配使用 `discipline` 字段；共享课程可补充 `sharedDiscipline`、`sharedDisciplines`、`eligibleDiscipline` 或 `degreeDiscipline` 字段，也可直接使用 Excel 列名 `所属一级学科`、`共享学科`、`共享学科所属一级学科/专业学位`。校区使用 `campus` 字段，当前页面支持雁栖湖、玉泉路和中关村筛选。
 
 公开发布或更新数据前，请核对课程信息的准确性和再分发权限。

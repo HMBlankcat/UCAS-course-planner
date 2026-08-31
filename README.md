@@ -44,7 +44,7 @@ public/data/courses.json
 
 每门课程至少应包含以下字段：`code`、`name`、`type`、`credit`、`teacher`、`exam`、`place`、`campus`、`sessions`。`sessions` 中可使用 `day`、`periods`、`weeks` 和 `room` 描述上课安排；无固定时间的线上课程可以使用空数组。
 
-用于学位课资格判断的一级学科字段为 `discipline`；如果一门课程适用于多个一级学科，还可以使用 `sharedDiscipline`、`sharedDisciplines`、`eligibleDiscipline` 或 `degreeDiscipline`，多个学科可用顿号、逗号、分号或竖线分隔。
+用于学位课资格判断的一级学科字段为 `discipline`；如果一门课程适用于多个一级学科，还可以使用 `sharedDiscipline`、`sharedDisciplines`、`eligibleDiscipline` 或 `degreeDiscipline`，多个学科可用顿号、逗号、分号或竖线分隔。若直接保留 Excel 列名，也支持 `所属一级学科`、`共享学科`、`共享学科所属一级学科/专业学位` 和全角斜杠写法。
 
 当前仓库中的课程库来自用户提供的 2026—2027 学年课程 Excel 提取数据。公开发布前，请确认课程数据的发布、转载和再分发权限，并在新学年开始前用官方最新数据校验课程信息。
 

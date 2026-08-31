@@ -38,6 +38,10 @@ type Course = {
   sharedDisciplines?: string;
   eligibleDiscipline?: string;
   degreeDiscipline?: string;
+  所属一级学科?: string;
+  共享学科?: string;
+  '共享学科所属一级学科/专业学位'?: string;
+  '共享学科所属一级学科／专业学位'?: string;
   level?: string;
   credit: number;
   teacher: string;
@@ -151,6 +155,10 @@ function disciplineValues(course: Course) {
     course.sharedDisciplines,
     course.eligibleDiscipline,
     course.degreeDiscipline,
+    course['所属一级学科'],
+    course['共享学科'],
+    course['共享学科所属一级学科/专业学位'],
+    course['共享学科所属一级学科／专业学位'],
   ]
     .filter(Boolean)
     .flatMap((value) => String(value).split(/[、,，;/；|]/))
