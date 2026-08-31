@@ -3,18 +3,20 @@
 @import 'shadcn/tailwind.css';
 
 :root {
-  --ink: #17324d;
-  --ink-soft: #31516a;
-  --muted: #6f7f88;
-  --paper: #f6f4ef;
-  --card: #fffdfa;
-  --line: #dddcd5;
-  --mint: #dff0e9;
-  --blue: #dceaf7;
-  --rose: #f4dfdf;
-  --gold: #f5e7c9;
-  --lilac: #eae4f5;
-  --shadow: 0 16px 40px rgba(31, 48, 56, 0.07);
+  --ink: #5f6872;
+  --ink-soft: #697580;
+  --muted: #89949e;
+  --paper: #ffffff;
+  --card: #ffffff;
+  --line: #e2edf5;
+  --mint: #daf2e7;
+  --blue: #cae9fc;
+  --rose: #8ecefc;
+  --gold: #f3f5c9;
+  --lilac: #e7f4fd;
+  --primary: #44abf8;
+  --primary-soft: #8ecefc;
+  --shadow: 0 16px 40px rgba(68, 171, 248, 0.1);
 }
 * {
   box-sizing: border-box;
@@ -1305,4 +1307,234 @@ code {
   h1 {
     font-size: 47px;
   }
+}
+
+/* Palette: #44ABF8 / #8ECEFC / #CAE9FC / #DAF2E7 / #F3F5C9 */
+.site-shell {
+  background:
+    radial-gradient(
+      circle at 8% 0%,
+      rgba(202, 233, 252, 0.58),
+      transparent 27rem
+    ),
+    var(--paper);
+}
+.hero-status {
+  border-color: #cae9fc;
+  background: linear-gradient(145deg, #cae9fc, #daf2e7);
+}
+.status-top {
+  color: #328ed2;
+}
+.status-dot {
+  background: var(--primary);
+  box-shadow: 0 0 0 4px rgba(68, 171, 248, 0.16);
+}
+.rule-strip {
+  border-color: #cae9fc;
+  background: rgba(255, 255, 255, 0.86);
+}
+.rule-strip span {
+  background: #cae9fc;
+  color: #347cae;
+}
+.panel,
+.timetable,
+.catalog {
+  border-color: #dcebf5;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow);
+}
+.status {
+  background: #daf2e7;
+  color: #39866e;
+}
+.status.danger {
+  background: #ffe5e3;
+  color: #b45852;
+}
+.text-button,
+.quiet-button {
+  color: #4a94ce;
+}
+.text-button:hover,
+.quiet-button:hover {
+  color: #267db9;
+}
+.selected-card {
+  border-color: #e1edf5;
+  background: #ffffff;
+}
+.empty-plan {
+  border-color: #b9dbf2;
+  background: #f5fbff;
+  color: #6f8999;
+}
+.empty-plan b {
+  color: #4385ad;
+}
+.empty-plan span {
+  color: #91a3ad;
+}
+.tone-blue .card-color,
+.tone-blue.lesson {
+  background: #8ecefc;
+}
+.tone-sage .card-color,
+.tone-sage.lesson {
+  background: #daf2e7;
+}
+.tone-rose .card-color,
+.tone-rose.lesson {
+  background: #cae9fc;
+}
+.tone-gold .card-color,
+.tone-gold.lesson {
+  background: #f3f5c9;
+}
+.tone-lilac .card-color,
+.tone-lilac.lesson {
+  background: #e7f4fd;
+}
+.tone-cyan .card-color,
+.tone-cyan.lesson {
+  background: #d5f0f6;
+}
+.credit-badge,
+.type-pill {
+  background: #eaf6fd;
+  color: #5b8aa7;
+}
+.course-schedule {
+  color: #4a94ce;
+}
+.degree-toggle.active,
+.check-circle.done,
+.exam-pill,
+.add-button {
+  border-color: #8bd5ba;
+  background: #daf2e7;
+  color: #39866e;
+}
+.icon-button:hover {
+  color: #b45852;
+  border-color: #f0b7b2;
+}
+.important-note {
+  background: #f3f5c9;
+  color: #7d7d54;
+}
+.requirement-line,
+.metric-check.good {
+  color: #39866e;
+}
+.requirement-line svg {
+  color: #44abf8;
+}
+.requirement-line.pending,
+.metric-check {
+  color: #89834d;
+}
+.requirement-line.pending svg {
+  color: #c1b852;
+}
+.next-term {
+  background: #eaf6fd;
+  color: #638297;
+}
+.week-jump button:hover,
+.week-jump button.active {
+  background: var(--primary);
+}
+.calendar-head {
+  background: #cae9fc;
+  color: #397eaa;
+}
+.time-cell {
+  background: #f2f9fd;
+  color: #638297;
+}
+.lesson-cell {
+  background: rgba(255, 255, 255, 0.82);
+}
+.lesson {
+  color: #4c7188;
+}
+.lesson span {
+  color: #7094a8;
+}
+.quiet-button {
+  border-color: #cfe5f3;
+  background: #ffffff;
+}
+.filter-sections {
+  border-color: #dcebf5;
+  background: #f7fcff;
+}
+.switch-label,
+.filter-label {
+  color: #5485a0;
+}
+.switch-label input:checked + .switch {
+  background: var(--primary);
+}
+.type-buttons button.active,
+.campus-buttons button.active,
+.pagination button.active {
+  border-color: var(--primary);
+  background: #cae9fc;
+  color: #287fb8;
+}
+.course-table-wrap {
+  border-color: #dcebf5;
+}
+.course-table th {
+  background: #cae9fc;
+  color: #397eaa;
+}
+.course-table td {
+  border-color: #e4eef4;
+  color: #687e8c;
+}
+.course-table tr:hover td {
+  background: #f3faff;
+}
+.course-table .closed-row td {
+  background: #f9fcff;
+}
+.course-table td b {
+  color: #4c6878;
+}
+.exam-pill.closed {
+  background: #ffe5e3;
+  color: #b45852;
+}
+.added-button {
+  border-color: #cfe5f3;
+  background: #eef8fd;
+  color: #7d9aaa;
+}
+.select-field,
+.rules-grid details {
+  border-color: #dcebf5;
+  background: #f8fcff;
+}
+.select-field select {
+  border-color: #cfe5f3;
+  color: #4c7188;
+}
+.settings-note,
+.rules-grid ul,
+.english-empty {
+  color: #738c9c;
+}
+.discipline-match.match {
+  color: #39866e;
+}
+.campus-buttons button {
+  border-color: #cfe5f3;
+  color: #5b8aa7;
+}
+.rules-grid summary {
+  color: #397eaa;
 }
