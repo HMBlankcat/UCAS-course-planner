@@ -735,6 +735,39 @@ h3 {
   background: transparent;
   font-size: 12px;
 }
+.teacher-search-box {
+  flex: 0 1 210px;
+  min-width: 180px;
+}
+.schedule-filter-row {
+  align-items: flex-end;
+}
+.catalog-filter-field {
+  display: flex;
+  min-width: 145px;
+  flex-direction: column;
+  gap: 4px;
+}
+.catalog-filter-field > span {
+  color: #78909a;
+  font-size: 10px;
+  font-weight: 700;
+}
+.catalog-filter-field select {
+  min-height: 32px;
+  padding: 6px 28px 6px 9px;
+  border: 1px solid #d9dedb;
+  border-radius: 8px;
+  outline: 0;
+  background: #fff;
+  color: var(--ink);
+  font-size: 11px;
+}
+.filter-hint {
+  align-self: center;
+  color: #8ca2aa;
+  font-size: 10px;
+}
 .switch-label {
   display: inline-flex;
   align-items: center;
@@ -1280,6 +1313,15 @@ code {
   }
   .data-actions {
     justify-content: flex-start;
+  }
+  .teacher-search-box {
+    flex-basis: 100%;
+  }
+  .catalog-filter-field {
+    flex: 1 1 135px;
+  }
+  .filter-hint {
+    flex-basis: 100%;
   }
   .plan-toolbar {
     align-items: flex-start;

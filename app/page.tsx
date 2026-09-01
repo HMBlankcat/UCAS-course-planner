@@ -439,6 +439,48 @@ function hasSlot(course: Course, day: string, period: number, week: number) {
   );
 }
 
+function coursesConflict(left: Course, right: Course) {
+  return left.sessions.some((leftSession) =>
+    right.sessions.some(
+      (rightSession) =>
+        leftSession.day === rightSession.day &&
+        intersects(
+          parseWeeks(String(leftSession.weeks)),
+          parseWeeks(String(rightSession.weeks)),
+        ) &&
+        intersects(
+          parsePeriods(String(leftSession.periods)),
+          parsePeriods(String(rightSession.periods)),
+        ),
+    ),
+  );
+}
+
+function conflictsWithPlan(course: Course, plan: Course[]) {
+  return plan.some(
+    (selectedCourse) =>
+      selectedCourse.code !== course.code &&
+      coursesConflict(course, selectedCourse),
+  );
+}
+
+function matchesCatalogTimeFilter(
+  course: Course,
+  day: string,
+  period: number | null,
+  week: number | null,
+) {
+  if (!day && period === null && week === null) return true;
+  return course.sessions.some((session) => {
+    if (!session.day || !session.periods) return false;
+    return (
+      (!day || session.day === day) &&
+      (week === null || parseWeeks(String(session.weeks)).has(week)) &&
+      (period === null || parsePeriods(String(session.periods)).has(period))
+    );
+  });
+}
+
 function dateRangeForWeek(week: number) {
   const start = new Date(2026, 7, 31);
   start.setDate(start.getDate() + (week - 1) * 7);
@@ -492,8 +534,13 @@ export default function Home() {
   const [degreeCodes, setDegreeCodes] = useState<Set<string>>(new Set());
   const [week, setWeek] = useState(2);
   const [search, setSearch] = useState('');
+  const [teacherSearch, setTeacherSearch] = useState('');
   const [activeType, setActiveType] = useState('全部');
   const [onlyNonClosed, setOnlyNonClosed] = useState(false);
+  const [onlyAvailable, setOnlyAvailable] = useState(false);
+  const [catalogDay, setCatalogDay] = useState('');
+  const [catalogPeriod, setCatalogPeriod] = useState('');
+  const [catalogWeek, setCatalogWeek] = useState('');
   const [campusFilter, setCampusFilter] = useState('全部校区');
   const [catalogPage, setCatalogPage] = useState(1);
   const [studentType, setStudentType] = useState<StudentType>('未选择');
@@ -609,21 +656,7 @@ export default function Home() {
     const result: Array<[Course, Course]> = [];
     for (let i = 0; i < plan.length; i += 1)
       for (let j = i + 1; j < plan.length; j += 1) {
-        const conflict = plan[i].sessions.some((left) =>
-          plan[j].sessions.some(
-            (right) =>
-              left.day === right.day &&
-              intersects(
-                parseWeeks(String(left.weeks)),
-                parseWeeks(String(right.weeks)),
-              ) &&
-              intersects(
-                parsePeriods(String(left.periods)),
-                parsePeriods(String(right.periods)),
-              ),
-          ),
-        );
-        if (conflict) result.push([plan[i], plan[j]]);
+        if (coursesConflict(plan[i], plan[j])) result.push([plan[i], plan[j]]);
       }
     return result;
   }, [plan]);
@@ -708,27 +741,54 @@ export default function Home() {
 
   const filteredCatalog = useMemo(() => {
     const needle = search.trim().toLowerCase();
+    const teacherNeedle = teacherSearch.trim().toLowerCase();
+    const selectedCatalogWeek = catalogWeek ? Number(catalogWeek) : null;
+    const selectedCatalogPeriod = catalogPeriod ? Number(catalogPeriod) : null;
     return catalog.filter((course) => {
       const matchesSearch =
         !needle ||
         `${course.name} ${course.code} ${disciplineValues(course).join(' ')} ${course.teacher}`
           .toLowerCase()
           .includes(needle);
+      const matchesTeacher =
+        !teacherNeedle || course.teacher.toLowerCase().includes(teacherNeedle);
       const matchesType =
         activeType === '全部' ||
         courseTypeForDiscipline(course, selectedDiscipline) === activeType;
       const matchesExam = !onlyNonClosed || !course.exam.includes('闭卷');
       const matchesCampus =
         campusFilter === '全部校区' || courseCampus(course) === campusFilter;
-      return matchesSearch && matchesType && matchesExam && matchesCampus;
+      const matchesTime = matchesCatalogTimeFilter(
+        course,
+        catalogDay,
+        selectedCatalogPeriod,
+        selectedCatalogWeek,
+      );
+      const matchesAvailability =
+        !onlyAvailable || !conflictsWithPlan(course, plan);
+      return (
+        matchesSearch &&
+        matchesTeacher &&
+        matchesType &&
+        matchesExam &&
+        matchesCampus &&
+        matchesTime &&
+        matchesAvailability
+      );
     });
   }, [
     activeType,
     campusFilter,
+    catalogDay,
+    catalogPeriod,
+    catalogWeek,
     catalog,
     onlyNonClosed,
+    onlyAvailable,
+    plan,
     search,
     selectedDiscipline,
+    teacherSearch,
   ]);
   const catalogPageCount = Math.max(
     1,
@@ -1485,6 +1545,18 @@ export default function Home() {
                 placeholder="课程名称、课程代码、教师或学科"
               />
             </label>
+            <label className="search-box teacher-search-box">
+              <Search size={16} />
+              <input
+                value={teacherSearch}
+                onChange={(event) => {
+                  setTeacherSearch(event.target.value);
+                  setCatalogPage(1);
+                }}
+                placeholder="按教师查找"
+                aria-label="按教师查找课程"
+              />
+            </label>
             <label className="switch-label">
               <input
                 type="checkbox"
@@ -1497,6 +1569,79 @@ export default function Home() {
               <span className="switch" />
               只看非闭卷
             </label>
+          </div>
+          <div className="filter-row schedule-filter-row">
+            <span className="filter-label">教学时段</span>
+            <label className="catalog-filter-field">
+              <span>星期</span>
+              <select
+                value={catalogDay}
+                onChange={(event) => {
+                  setCatalogDay(event.target.value);
+                  setCatalogPage(1);
+                }}
+              >
+                <option value="">不限星期</option>
+                {DAYS.map((day) => (
+                  <option key={day} value={day}>
+                    {day}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="catalog-filter-field">
+              <span>教学周</span>
+              <select
+                value={catalogWeek}
+                onChange={(event) => {
+                  setCatalogWeek(event.target.value);
+                  setCatalogPage(1);
+                }}
+              >
+                <option value="">不限教学周</option>
+                {Array.from({ length: 19 }, (_, index) => index + 1).map(
+                  (item) => (
+                    <option key={item} value={item}>
+                      第 {item} 周
+                    </option>
+                  ),
+                )}
+              </select>
+            </label>
+            <label className="catalog-filter-field">
+              <span>节次</span>
+              <select
+                value={catalogPeriod}
+                onChange={(event) => {
+                  setCatalogPeriod(event.target.value);
+                  setCatalogPage(1);
+                }}
+              >
+                <option value="">不限节次</option>
+                {PERIODS.map(([period, time]) => (
+                  <option key={period} value={period}>
+                    第 {period} 节（{time}）
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="switch-label availability-switch">
+              <input
+                type="checkbox"
+                checked={onlyAvailable}
+                onChange={(event) => {
+                  setOnlyAvailable(event.target.checked);
+                  setCatalogPage(1);
+                }}
+              />
+              <span className="switch" />
+              只看当前课表空闲课程
+            </label>
+            <span className="filter-hint">
+              {plan.length
+                ? '按已选课程的教学周与节次自动排除冲突'
+                : '当前暂无已选课程，固定时段课程均视为空闲'}
+            </span>
           </div>
           <div className="filter-row type-row">
             <span className="filter-label">
