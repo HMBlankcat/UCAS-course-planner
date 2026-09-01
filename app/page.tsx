@@ -101,6 +101,11 @@ const STUDENT_TYPES: StudentType[] = [
   '普通招考博士研究生',
 ];
 const CAMPUSES = ['全部校区', '雁栖湖', '玉泉路', '中关村'];
+const CAMPUS_BY_CODE_LETTER: Record<string, string> = {
+  H: '雁栖湖',
+  Y: '玉泉路',
+  Z: '中关村',
+};
 const PRIMARY_DISCIPLINE_BY_CODE: Record<string, string> = {
   '0101': '哲学',
   '0202': '应用经济学',
@@ -235,8 +240,8 @@ function splitDisciplineValues(values: unknown[]) {
     new Set(
       values
         .filter(Boolean)
-        .flatMap((value) => String(value).split(/[、,，;/；|]/))
-        .map((value) => value.trim())
+        .flatMap((value) => String(value).split(/[、,，;/；|／\n\r]+/))
+        .map((value) => value.replace(/\s+/g, ' ').trim())
         .filter(Boolean),
     ),
   );
@@ -247,6 +252,14 @@ function codeDisciplineValues(course: Course) {
   return PRIMARY_DISCIPLINE_BY_CODE[code.slice(6, 10)]
     ? [PRIMARY_DISCIPLINE_BY_CODE[code.slice(6, 10)]]
     : [];
+}
+
+function courseCampus(course: Course) {
+  const baseCode = String(course.code ?? '')
+    .split('-')[0]
+    .replace(/\s/g, '');
+  const campusCode = baseCode.slice(17, 18).toUpperCase();
+  return CAMPUS_BY_CODE_LETTER[campusCode] ?? course.campus ?? '';
 }
 
 function rawDisciplineValues(course: Course) {
@@ -613,7 +626,7 @@ export default function Home() {
       const matchesType = activeType === '全部' || course.type === activeType;
       const matchesExam = !onlyNonClosed || !course.exam.includes('闭卷');
       const matchesCampus =
-        campusFilter === '全部校区' || course.campus === campusFilter;
+        campusFilter === '全部校区' || courseCampus(course) === campusFilter;
       return matchesSearch && matchesType && matchesExam && matchesCampus;
     });
   }, [activeType, campusFilter, catalog, onlyNonClosed, search]);
@@ -765,6 +778,12 @@ export default function Home() {
               label: '博士英语',
               code: '英语B',
               options: ['免修', '线下课'],
+            },
+            {
+              key: 'masters',
+              label: '硕士英语',
+              code: '英语A',
+              options: ['MOOC', '免修', '线下课'],
             },
           ]
         : [];

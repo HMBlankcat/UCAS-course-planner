@@ -18,6 +18,6 @@
 }
 ```
 
-一级学科匹配优先根据课程代码第 7—10 位识别一级学科，例如 `1404` 对应“遥感科学与技术”；课程数据中的 `discipline`、共享课程字段 `sharedDiscipline`、`sharedDisciplines`、`eligibleDiscipline`、`degreeDiscipline` 以及 Excel 列名 `所属一级学科`、`共享学科`、`共享学科所属一级学科/专业学位` 也会一并参与匹配。校区使用 `campus` 字段，当前页面支持雁栖湖、玉泉路和中关村筛选。
+一级学科匹配优先根据课程代码第 7—10 位识别一级学科，例如 `1404` 对应“遥感科学与技术”；课程数据中的 `discipline`、共享课程字段 `sharedDiscipline`、`sharedDisciplines`、`eligibleDiscipline`、`degreeDiscipline` 以及 Excel 列名 `所属一级学科`、`共享学科`、`共享学科所属一级学科/专业学位` 也会一并参与匹配。多值字段支持换行、顿号、逗号、分号和斜杠分隔。校区筛选优先读取去掉班次后课程代码的第 18 位：`H` 为雁栖湖、`Y` 为玉泉路、`Z` 为中关村；无代码校区字母时才回退到 `campus` 字段。
 
 公开发布或更新数据前，请核对课程信息的准确性和再分发权限。
