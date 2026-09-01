@@ -93,6 +93,11 @@ const PERIODS = [
   ['12', '20:15–21:00'],
   ['13', '21:05–21:50'],
 ];
+const TEACHING_WEEK_COUNT = 20;
+const TEACHING_WEEKS = Array.from(
+  { length: TEACHING_WEEK_COUNT },
+  (_, index) => index + 1,
+);
 const COURSE_TYPES = [
   '全部',
   '学科核心课',
@@ -486,7 +491,8 @@ function dateRangeForWeek(week: number) {
   start.setDate(start.getDate() + (week - 1) * 7);
   const end = new Date(start);
   end.setDate(end.getDate() + 6);
-  const format = (date: Date) => `${date.getMonth() + 1}月${date.getDate()}日`;
+  const format = (date: Date) =>
+    `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
   return `${format(start)}–${format(end)}`;
 }
 
@@ -1388,22 +1394,20 @@ export default function Home() {
               <ChevronLeft size={17} />
             </button>
             <div className="week-jump">
-              {Array.from({ length: 19 }, (_, index) => index + 1).map(
-                (item) => (
-                  <button
-                    key={item}
-                    className={item === week ? 'active' : ''}
-                    onClick={() => setWeek(item)}
-                  >
-                    {item}
-                  </button>
-                ),
-              )}
+              {TEACHING_WEEKS.map((item) => (
+                <button
+                  key={item}
+                  className={item === week ? 'active' : ''}
+                  onClick={() => setWeek(item)}
+                >
+                  {item}
+                </button>
+              ))}
             </div>
             <button
               className="round-button"
-              onClick={() => setWeek(Math.min(19, week + 1))}
-              disabled={week === 19}
+              onClick={() => setWeek(Math.min(TEACHING_WEEK_COUNT, week + 1))}
+              disabled={week === TEACHING_WEEK_COUNT}
             >
               <ChevronRight size={17} />
             </button>
@@ -1599,13 +1603,11 @@ export default function Home() {
                 }}
               >
                 <option value="">不限教学周</option>
-                {Array.from({ length: 19 }, (_, index) => index + 1).map(
-                  (item) => (
-                    <option key={item} value={item}>
-                      第 {item} 周
-                    </option>
-                  ),
-                )}
+                {TEACHING_WEEKS.map((item) => (
+                  <option key={item} value={item}>
+                    第 {item} 周
+                  </option>
+                ))}
               </select>
             </label>
             <label className="catalog-filter-field">
