@@ -986,7 +986,7 @@ export default function Home() {
           good={fallCredits >= 10}
         />
         <Metric
-          label="匹配一级学科的学位课"
+          label="学位课"
           value={degreeCredits.toFixed(1)}
           target={
             studentType === '硕士研究生'
@@ -999,7 +999,7 @@ export default function Home() {
           good={degreeCreditDone}
         />
         <Metric
-          label="核心课"
+          label="匹配一级学科的核心课"
           value={String(coreCount)}
           target="/ 2 门"
           tone="rose"
@@ -1010,7 +1010,7 @@ export default function Home() {
           }
         />
         <Metric
-          label="专业课"
+          label="匹配一级学科的专业课"
           value={String(professionalCount)}
           target="/ 2 门"
           tone="gold"
