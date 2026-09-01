@@ -38,6 +38,17 @@ type Course = {
   sharedDisciplines?: string;
   eligibleDiscipline?: string;
   degreeDiscipline?: string;
+  sharedProperty?: string;
+  sharedProperties?: string;
+  sharedTypes?: string;
+  sharedCourseProperty?: string;
+  共享课程属性?: string;
+  共享课程类型?: string;
+  sharedLevel?: string;
+  sharedLevels?: string;
+  sharedCourseLevel?: string;
+  共享课程层次?: string;
+  共享课程培养层次?: string;
   所属一级学科?: string;
   共享学科?: string;
   '共享学科所属一级学科/专业学位'?: string;
@@ -240,7 +251,11 @@ function splitDisciplineValues(values: unknown[]) {
     new Set(
       values
         .filter(Boolean)
-        .flatMap((value) => String(value).split(/[、,，;/；|／\n\r]+/))
+        .flatMap((value) =>
+          String(value)
+            .replace(/<br\s*\/?>/gi, '\n')
+            .split(/[、,，;/；|／\n\r]+/),
+        )
         .map((value) => value.replace(/\s+/g, ' ').trim())
         .filter(Boolean),
     ),
@@ -260,6 +275,23 @@ function courseCampus(course: Course) {
     .replace(/\s/g, '');
   const campusCode = baseCode.slice(17, 18).toUpperCase();
   return CAMPUS_BY_CODE_LETTER[campusCode] ?? course.campus ?? '';
+}
+
+function comparableDiscipline(value: string) {
+  return value.replace(/\s+/g, '').toLocaleLowerCase();
+}
+
+function matchingDisciplineIndex(values: string[], discipline: string) {
+  const target = comparableDiscipline(discipline);
+  if (!target) return -1;
+  return values.findIndex((value) => {
+    const candidate = comparableDiscipline(value);
+    return (
+      candidate === target ||
+      candidate.includes(target) ||
+      target.includes(candidate)
+    );
+  });
 }
 
 function rawDisciplineValues(course: Course) {
@@ -294,26 +326,73 @@ function disciplineValues(course: Course) {
   ].filter((value, index, values) => values.indexOf(value) === index);
 }
 
-function isCoreCourse(course: Course) {
-  return course.type.includes('核心');
+function sharedEligibleDisciplineValues(course: Course) {
+  return splitDisciplineValues([
+    course.eligibleDiscipline,
+    course.degreeDiscipline,
+    course['共享学科所属一级学科/专业学位'],
+    course['共享学科所属一级学科／专业学位'],
+  ]);
 }
 
-function isProfessionalCourse(course: Course) {
-  return course.type === '专业课';
+function sharedPropertyValues(course: Course) {
+  return splitDisciplineValues([
+    course.sharedProperty,
+    course.sharedProperties,
+    course.sharedTypes,
+    course.sharedCourseProperty,
+    course['共享课程属性'],
+    course['共享课程类型'],
+  ]);
 }
 
-function isCoreOrProfessionalCourse(course: Course) {
-  return isCoreCourse(course) || isProfessionalCourse(course);
+function sharedLevelValues(course: Course) {
+  return splitDisciplineValues([
+    course.sharedLevel,
+    course.sharedLevels,
+    course.sharedCourseLevel,
+    course['共享课程层次'],
+    course['共享课程培养层次'],
+  ]);
+}
+
+function courseTypeForDiscipline(course: Course, discipline = '') {
+  const sharedProperties = sharedPropertyValues(course);
+  const sharedIndex = matchingDisciplineIndex(
+    sharedEligibleDisciplineValues(course),
+    discipline,
+  );
+  if (sharedIndex < 0 || !sharedProperties.length) return course.type;
+  return sharedProperties[sharedIndex] ?? sharedProperties[0] ?? course.type;
+}
+
+function courseLevelForDiscipline(course: Course, discipline = '') {
+  const sharedLevels = sharedLevelValues(course);
+  const sharedIndex = matchingDisciplineIndex(
+    sharedEligibleDisciplineValues(course),
+    discipline,
+  );
+  if (sharedIndex < 0 || !sharedLevels.length) return course.level ?? '';
+  return sharedLevels[sharedIndex] ?? sharedLevels[0] ?? course.level ?? '';
+}
+
+function isCoreCourse(course: Course, discipline = '') {
+  return courseTypeForDiscipline(course, discipline).includes('核心');
+}
+
+function isProfessionalCourse(course: Course, discipline = '') {
+  return courseTypeForDiscipline(course, discipline) === '专业课';
+}
+
+function isCoreOrProfessionalCourse(course: Course, discipline = '') {
+  return (
+    isCoreCourse(course, discipline) || isProfessionalCourse(course, discipline)
+  );
 }
 
 function matchesDiscipline(course: Course, discipline: string) {
   if (!discipline) return false;
-  return disciplineValues(course).some(
-    (value) =>
-      value === discipline ||
-      value.includes(discipline) ||
-      discipline.includes(value),
-  );
+  return matchingDisciplineIndex(disciplineValues(course), discipline) >= 0;
 }
 
 function parseWeeks(value: string) {
@@ -565,7 +644,7 @@ export default function Home() {
       plan.filter(
         (course) =>
           degreeCodes.has(course.code) &&
-          isCoreOrProfessionalCourse(course) &&
+          isCoreOrProfessionalCourse(course, selectedDiscipline) &&
           matchesDiscipline(course, selectedDiscipline),
       ),
     [degreeCodes, plan, selectedDiscipline],
@@ -575,12 +654,18 @@ export default function Home() {
     [degreePlanCourses],
   );
   const coreCount = useMemo(
-    () => degreePlanCourses.filter(isCoreCourse).length,
-    [degreePlanCourses],
+    () =>
+      degreePlanCourses.filter((course) =>
+        isCoreCourse(course, selectedDiscipline),
+      ).length,
+    [degreePlanCourses, selectedDiscipline],
   );
   const professionalCount = useMemo(
-    () => degreePlanCourses.filter(isProfessionalCourse).length,
-    [degreePlanCourses],
+    () =>
+      degreePlanCourses.filter((course) =>
+        isProfessionalCourse(course, selectedDiscipline),
+      ).length,
+    [degreePlanCourses, selectedDiscipline],
   );
   const degreeTarget =
     studentType === '硕士研究生'
@@ -596,7 +681,7 @@ export default function Home() {
     Boolean(selectedDiscipline) &&
     degreeCredits >= degreeTarget;
   const hasDoctoralCommonOrExclusive = degreePlanCourses.some((course) =>
-    /硕博通用|博士/.test(course.level ?? ''),
+    /硕博通用|博士/.test(courseLevelForDiscipline(course, selectedDiscipline)),
   );
   const degreeStructureDone =
     studentType !== '未选择' &&
@@ -623,13 +708,22 @@ export default function Home() {
         `${course.name} ${course.code} ${disciplineValues(course).join(' ')} ${course.teacher}`
           .toLowerCase()
           .includes(needle);
-      const matchesType = activeType === '全部' || course.type === activeType;
+      const matchesType =
+        activeType === '全部' ||
+        courseTypeForDiscipline(course, selectedDiscipline) === activeType;
       const matchesExam = !onlyNonClosed || !course.exam.includes('闭卷');
       const matchesCampus =
         campusFilter === '全部校区' || courseCampus(course) === campusFilter;
       return matchesSearch && matchesType && matchesExam && matchesCampus;
     });
-  }, [activeType, campusFilter, catalog, onlyNonClosed, search]);
+  }, [
+    activeType,
+    campusFilter,
+    catalog,
+    onlyNonClosed,
+    search,
+    selectedDiscipline,
+  ]);
   const catalogPageCount = Math.max(
     1,
     Math.ceil(filteredCatalog.length / PAGE_SIZE),
@@ -645,10 +739,9 @@ export default function Home() {
     const nextCourse = {
       ...course,
       rationale: course.rationale ?? defaultRationale(course),
-      degreeRole:
-        course.type.includes('核心') || course.type === '专业课'
-          ? '建议学位课'
-          : '待确认',
+      degreeRole: isCoreOrProfessionalCourse(course, selectedDiscipline)
+        ? '建议学位课'
+        : '待确认',
     };
     setPlan((current) => [...current, nextCourse]);
     if (nextCourse.degreeRole === '建议学位课')
@@ -1024,10 +1117,10 @@ export default function Home() {
                       <span className="credit-badge">{course.credit} 学分</span>
                     </div>
                     <p className="course-meta">
-                      {course.type} · {course.teacher || '教师待定'} ·{' '}
+                      {courseTypeForDiscipline(course, selectedDiscipline)} ·{' '}
                       {shortExam(course.exam)}
                     </p>
-                    {isCoreOrProfessionalCourse(course) && (
+                    {isCoreOrProfessionalCourse(course, selectedDiscipline) && (
                       <span
                         className={`discipline-match ${selectedDiscipline && matchesDiscipline(course, selectedDiscipline) ? 'match' : 'supplement'}`}
                       >
@@ -1487,7 +1580,9 @@ export default function Home() {
                       <small>{course.code}</small>
                     </td>
                     <td>
-                      <span className="type-pill">{course.type}</span>
+                      <span className="type-pill">
+                        {courseTypeForDiscipline(course, selectedDiscipline)}
+                      </span>
                       <small>
                         {disciplineValues(course).join(' / ') || '公共课'}
                       </small>
