@@ -644,10 +644,16 @@ export default function Home() {
       plan.filter(
         (course) =>
           degreeCodes.has(course.code) &&
-          isCoreOrProfessionalCourse(course, selectedDiscipline) &&
-          matchesDiscipline(course, selectedDiscipline),
+          isCoreOrProfessionalCourse(course, selectedDiscipline),
       ),
     [degreeCodes, plan, selectedDiscipline],
+  );
+  const matchingDegreeCourses = useMemo(
+    () =>
+      degreePlanCourses.filter((course) =>
+        matchesDiscipline(course, selectedDiscipline),
+      ),
+    [degreePlanCourses, selectedDiscipline],
   );
   const degreeCredits = useMemo(
     () => degreePlanCourses.reduce((sum, course) => sum + course.credit, 0),
@@ -655,17 +661,17 @@ export default function Home() {
   );
   const coreCount = useMemo(
     () =>
-      degreePlanCourses.filter((course) =>
+      matchingDegreeCourses.filter((course) =>
         isCoreCourse(course, selectedDiscipline),
       ).length,
-    [degreePlanCourses, selectedDiscipline],
+    [matchingDegreeCourses, selectedDiscipline],
   );
   const professionalCount = useMemo(
     () =>
-      degreePlanCourses.filter((course) =>
+      matchingDegreeCourses.filter((course) =>
         isProfessionalCourse(course, selectedDiscipline),
       ).length,
-    [degreePlanCourses, selectedDiscipline],
+    [matchingDegreeCourses, selectedDiscipline],
   );
   const degreeTarget =
     studentType === '硕士研究生'
@@ -680,7 +686,7 @@ export default function Home() {
     studentType !== '未选择' &&
     Boolean(selectedDiscipline) &&
     degreeCredits >= degreeTarget;
-  const hasDoctoralCommonOrExclusive = degreePlanCourses.some((course) =>
+  const hasDoctoralCommonOrExclusive = matchingDegreeCourses.some((course) =>
     /硕博通用|博士/.test(courseLevelForDiscipline(course, selectedDiscipline)),
   );
   const degreeStructureDone =
@@ -1127,7 +1133,7 @@ export default function Home() {
                         {selectedDiscipline
                           ? matchesDiscipline(course, selectedDiscipline)
                             ? `一级学科匹配：${selectedDiscipline}`
-                            : '非所选一级学科：仅作补充课程'
+                            : '非所选一级学科：不计入 2+2，但计入学位课学分'
                           : '尚未选择一级学科，暂无法核验'}
                       </span>
                     )}
@@ -1200,10 +1206,10 @@ export default function Home() {
             note="不计未转换的人文系列与科学前沿讲座"
           />
           <Requirement
-            label="符合一级学科的学位课"
+            label="学位课"
             current={degreeCreditCurrent}
             done={degreeCreditDone}
-            note="只统计勾选为学位课且匹配所选一级学科的核心课/专业课"
+            note="统计所有勾选为学位课的学科核心课、专业核心课和专业课；2+2 结构另按所选一级学科匹配核验"
           />
           <Requirement
             label={isRegularDoctor ? '普博学位课结构' : '2+2 学位课结构'}
